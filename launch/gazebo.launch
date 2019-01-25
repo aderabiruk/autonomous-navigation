@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="paused" default="false"/>
+  	<arg name="use_sim_time" default="true"/>
+  	<arg name="gui" default="true"/>
+  	<arg name="headless" default="false"/>
+  	<arg name="debug" default="false"/>
+  	<arg name="model" default="$(find autonomous_navigation)/urdf/mybot.xacro"/>
+  	<arg name="rvizconfig" default="$(find autonomous_navigation)/rviz/urdf.rviz" />
+
+  	<include file="$(find gazebo_ros)/launch/empty_world.launch">
+    	<arg name="world_name" value="$(find autonomous_navigation)/worlds/empty_world.world"/>
+    	<arg name="paused" value="$(arg paused)"/>
+	    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+	    <arg name="gui" value="$(arg gui)"/>
+	    <arg name="headless" value="$(arg headless)"/>
+	    <arg name="debug" value="$(arg debug)"/>
+  	</include>
+
+  	<param name="robot_description" command="$(find xacro)/xacro --inorder $(arg model)" />
+
+  	<node name="mybot_spawn" pkg="gazebo_ros" type="spawn_model" output="screen" 
+  			args="-urdf -param robot_description -model mybot" />
+  	<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+  	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+</launch>

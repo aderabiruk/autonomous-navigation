@@ -1,0 +1,283 @@
+<?xml version="1.0"?>
+<robot name="moving_car" xmlns:xacro="http://ros.org/wiki/xacro">
+
+	<material name="blue">
+		<color rgba="0 0 1 1"/>
+	</material>
+
+	<material name="green">
+		<color rgba="0 1 0 1"/>
+	</material>
+
+	<material name="red">
+		<color rgba="1 0 0 1"/>
+	</material>
+
+	<material name="white">
+		<color rgba="1 1 1 1"/>
+	</material>
+
+	<xacro:property name="PI" value="3.1415926535897931"/>
+
+	<xacro:property name="chassis_mass" value="50"/>
+	<xacro:property name="chassis_width" value="0.5"/>
+	<xacro:property name="chassis_height" value="0.75"/>
+	<xacro:property name="chassis_depth" value="0.2"/>
+
+	<xacro:property name="wheel_mass" value="5"/>
+	<xacro:property name="wheel_radius" value="0.2"/>
+	<xacro:property name="wheel_length" value="0.05"/>
+	<xacro:property name="wheel_position" value="0.1"/>
+
+	<xacro:property name="casterRadius" value="0.1"/>
+	<xacro:property name="casterMass" value="5"/>
+
+	<xacro:property name="camera_size" value="0.05"/>
+	<xacro:property name="camera_mass" value="0.1"/>
+
+	<macro name="box_inertia" params="m x y z">
+	  	<inertia ixx="${m*(y*y+z*z)/12}" ixy = "0" ixz = "0"
+	    		iyy="${m*(x*x+z*z)/12}" iyz = "0" izz="${m*(x*x+z*z)/12}"/>
+	</macro>
+
+	<macro name="cylinder_inertia" params="m r h">
+	  	<inertia ixx="${m*(3*r*r+h*h)/12}" ixy = "0" ixz = "0"
+	    		iyy="${m*(3*r*r+h*h)/12}" iyz = "0" izz="${m*r*r/2}"/>
+	</macro>
+
+	<macro name="sphere_inertia" params="m r">
+	  	<inertia  ixx="${2*m*r*r/5}" ixy = "0" ixz = "0"
+	    		iyy="${2*m*r*r/5}" iyz = "0" izz="${2*m*r*r/5}"/>
+	</macro>
+
+	<macro name="wheel" params="lr tY">
+		<link name="${lr}_wheel">
+		  	<collision>
+		   		<origin xyz="0 0 0" rpy="0 ${PI/2} ${PI/2}" />
+			    <geometry>
+			      	<cylinder length="${wheel_length}" radius="${wheel_radius}"/>
+			    </geometry>
+		  	</collision>
+
+		  	<visual>
+		    	<origin xyz="0 0 0" rpy="0 ${PI/2} ${PI/2}" />
+		    	<geometry>
+		      		<cylinder length="${wheel_length}" radius="${wheel_radius}"/>
+		    	</geometry>
+		    	<material name="blue"/>
+		  	</visual>
+
+		  	<inertial>
+		    	<origin xyz="0 0 0" rpy="0 ${PI/2} ${PI/2}" />
+		    	<mass value="${wheel_mass}"/>
+		    	<cylinder_inertia m="${wheel_mass}" r="${wheel_radius}" h="${wheel_length}"/>
+		  	</inertial>
+		</link>
+
+		<gazebo reference="${lr}_wheel">
+		  	<mu1 value="200.0"/>
+		  	<mu2 value="100.0"/>
+		  	<kp  value="10000000.0" />
+		  	<kd  value="1.0" />
+		  	<material>Gazebo/Blue</material>
+		</gazebo>
+
+		<joint name="${lr}_wheel_hinge" type="continuous">
+		  	<parent link="chassis"/>
+		  	<child link="${lr}_wheel"/>
+			<origin xyz="${-0.2+chassis_height/2} 
+						${tY * wheel_length/2 + tY*chassis_width/2} 
+						${wheel_radius}" rpy="0 0 0" />
+		  	<axis xyz="0 1 0" rpy="0 0 0" />
+		  	<limit effort="100" velocity="100"/>
+		  	<joint_properties damping="0.0" friction="0.0"/>
+		</joint>
+
+		<transmission name="${lr}_trans">
+		  	<type>transmission_interface/SimpleTransmission</type>
+		  	<joint name="${lr}_wheel_hinge">
+		  		<hardwareInterface>EffortJointInterface</hardwareInterface>
+		  	</joint>
+		  	<actuator name="${lr}Motor">
+		    	<hardwareInterface>EffortJointInterface</hardwareInterface>
+		    	<mechanicalReduction>10</mechanicalReduction>
+		  	</actuator>
+		</transmission>
+
+	</macro>
+
+	<link name="base_link" />
+
+	<gazebo reference="chassis">
+	  	<material>Gazebo/Green</material>
+	</gazebo>
+
+	<joint name="base_joint" type="fixed">
+	  	<parent link="base_link"/>
+	  	<child link="chassis"/>
+	</joint>
+
+	<link name="chassis">
+	  	<collision> 
+	    	<origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/> 
+	    	<geometry> 
+	      		<box size="${chassis_height} ${chassis_width} ${chassis_depth}"/> 
+	    	</geometry> 
+	  	</collision>
+
+	  	<visual> 
+	    	<origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/> 
+	    	<geometry> 
+	      		<box size="${chassis_height} ${chassis_width} ${chassis_depth}"/> 
+	    	</geometry> 
+	    	<material name="green"/>
+	  	</visual>
+
+	  	<inertial> 
+	    	<origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/> 
+	    	<mass value="${chassis_mass}"/> 
+	    	<box_inertia m="${chassis_mass}" x="${chassis_height}" y="${chassis_width}" 
+	    				z="${chassis_depth}"/>
+	  	</inertial>
+	</link>
+
+	<joint name="fixed" type="fixed">
+	  	<parent link="chassis"/>
+	  	<child link="caster_wheel"/>
+	</joint>
+
+	<link name="caster_wheel">
+	  	<collision>
+	    <origin xyz="${casterRadius - chassis_height/2} 0 
+	    			${casterRadius - chassis_depth + wheel_radius}" rpy="0 0 0"/>
+	    <geometry>
+	      	<sphere radius="${casterRadius}"/>
+	    </geometry>
+	  </collision>
+	  
+	  <visual>
+	    	<origin xyz="${casterRadius - chassis_height/2} 0 
+	    				${casterRadius - chassis_depth + wheel_radius}" rpy="0 0 0"/>
+	    <geometry>
+	      	<sphere radius="${casterRadius}"/>
+	    </geometry>
+	    <material name="red"/>
+	  </visual>
+
+	  <inertial>
+	    <origin xyz="${casterRadius - chassis_height/2} 0 
+	    			${casterRadius-chassis_depth + wheel_radius}" rpy="0 0 0"/>
+	    <mass value="${casterMass}"/>
+	    <sphere_inertia m="${casterMass}" r="${casterRadius}"/>
+	  </inertial>
+	</link>
+
+	<gazebo reference="caster_wheel">
+	  	<mu1>0.0</mu1>
+	  	<mu2>0.0</mu2>
+	  	<material>Gazebo/Green</material>
+	</gazebo>
+
+	<wheel lr="left" tY="1"/>
+	<wheel lr="right" tY="-1"/>
+
+	<joint name="camera_joint" type="fixed">
+	    <origin 
+	    	xyz="${-2 * camera_size + chassis_height/2} 0 ${wheel_radius + chassis_depth / 2}" 
+	    	rpy="0 0 0"/>
+	    <parent link="chassis"/>
+	    <child link="camera"/>
+	</joint>
+
+	<link name="camera">
+	  	<collision>
+		    <origin xyz="0 0 0" rpy="0 0 0"/>
+		    <geometry>
+		      	<sphere radius="${camera_size}"/>
+		    </geometry>
+	  	</collision>
+
+	  	<visual>
+		    <origin xyz="0 0 0" rpy="0 0 0"/>
+		    <geometry>
+		      	<sphere radius="${camera_size}"/>
+		    </geometry>
+		    <material name="white"/>
+	  	</visual>
+
+	  	<inertial>
+		    <mass value="${camera_mass}" />
+		    <origin xyz="0 0 0" rpy="0 0 0"/>
+		    <box_inertia m="${camera_mass}" x="${camera_size}" y="${camera_size}" z="${camera_size}"/>
+	  	</inertial>
+	</link>
+
+	<gazebo reference="camera">
+	  	<material>Gazebo/White</material>
+	  	<sensor type="camera" name="camera1">
+	    	<update_rate>30.0</update_rate>
+	    	<camera name="head">
+		      	<horizontal_fov>1.3962634</horizontal_fov>
+		      	<image>
+			        <width>640</width>
+          			<height>320</height>
+          			<format>R8G8B8</format>
+		      	</image>
+		      	<clip>
+		        	<near>0.02</near>
+		        	<far>300</far>
+		      	</clip>
+		      	<noise>
+          			<type>gaussian</type>
+          			<mean>0.0</mean>
+          			<stddev>0.007</stddev>
+        		</noise>
+	    	</camera>
+	    	<plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+		      	<alwaysOn>true</alwaysOn>
+		      	<updateRate>0.0</updateRate>
+		      	<cameraName>mybot/camera</cameraName>
+		      	<imageTopicName>image_raw</imageTopicName>
+		      	<cameraInfoTopicName>camera_info</cameraInfoTopicName>
+		      	<frameName>camera</frameName>
+		      	<hackBaseline>0.07</hackBaseline>
+		      	<distortionK1>0.0</distortionK1>
+		      	<distortionK2>0.0</distortionK2>
+		      	<distortionK3>0.0</distortionK3>
+		      	<distortionT1>0.0</distortionT1>
+		      	<distortionT2>0.0</distortionT2>
+	    	</plugin>
+	  	</sensor>
+	</gazebo>
+	
+	<gazebo>
+        <plugin name="gazebo_control" filename="libgazebo_ros_control.so">
+            <robotNamespace>/</robotNamespace>
+            <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+         	<legacyModeNS>true</legacyModeNS>
+        </plugin>
+    </gazebo>
+
+    <gazebo>
+	 	<plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+		    <alwaysOn>true</alwaysOn>
+		    <updateRate>100</updateRate>
+		    <leftJoint>left_wheel_hinge</leftJoint>
+		    <rightJoint>right_wheel_hinge</rightJoint>
+		    <wheelSeparation>${chassis_width+wheel_length}</wheelSeparation>
+		    <wheelDiameter>${2*wheel_radius}</wheelDiameter>
+		    <broadcastTF>1</broadcastTF>
+			<wheelTorque>30</wheelTorque>
+			<wheelAcceleration>1.8</wheelAcceleration>
+			<commandTopic>cmd_vel</commandTopic>
+			<odometryFrame>odom</odometryFrame>
+			<odometryTopic>odom</odometryTopic>
+			<rosDebugLevel>Debug</rosDebugLevel>
+			<publishWheelTF>false</publishWheelTF>
+			<robotNamespace>/</robotNamespace>
+			<publishTf>1</publishTf>
+			<publishWheelJointState>false</publishWheelJointState>
+		    <robotBaseFrame>base_link</robotBaseFrame>
+	  	</plugin>
+	</gazebo>
+</robot>
